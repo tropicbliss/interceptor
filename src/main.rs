@@ -22,14 +22,13 @@ async fn main() {
     let app = Router::new().route(
         &format!("/{}", cli.old_path),
         get(|ConnectInfo(addr): ConnectInfo<SocketAddr>| async move {
-            tracing::debug!("accepted connection from {:?}", addr);
+            tracing::debug!("accepted connection from {}", addr);
             Redirect::permanent(&cli.new_path)
         }),
     );
     let app = app.fallback(handler_404.into_service());
-    let addr = SocketAddr::from(([127, 0, 0, 1], cli.port));
-    tracing::debug!("listening on {}", addr);
-    axum::Server::bind(&addr)
+    tracing::debug!("listening on {}", cli.socket_addr);
+    axum::Server::bind(&cli.socket_addr)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
         .unwrap();
@@ -40,16 +39,17 @@ async fn handler_404() -> impl IntoResponse {
 }
 
 #[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
 struct Cli {
-    // Path to redirect from
+    /// Path to redirect from
     #[clap(short, long)]
     old_path: String,
 
-    // Website to redirect to
+    /// Website to redirect to
     #[clap(short, long)]
     new_path: String,
 
-    // Port to listen from
-    #[clap(short, long, default_value = "3000")]
-    port: u16,
+    /// Port to listen from
+    #[clap(short, long, default_value = "127.0.0.1:3000")]
+    socket_addr: SocketAddr,
 }
